@@ -1,0 +1,2 @@
+﻿The project currently uses Twitinvi 0.8.0.3
+See https://github.com/tokash?tab=repositories for the correct twitinvi version
