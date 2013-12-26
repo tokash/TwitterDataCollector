@@ -55,57 +55,30 @@ namespace UserSearch1
             IToken token = new Token(AccessToken2, AccessTokenSecret2, ConsumerKey2, ConsumerSecret2);
             ErrorCodes rcUsers = ErrorCodes.OK;
 
-            //ErrorCodes rcUsers = userTree.CreateDB("TwitterUsers.sdf", connectionStringUsers);
+            rcUsers = userTree.CreateDB("TwitterUsers.sdf", connectionStringUsers);
             //if (rcUsers.ToString() != "AlreadyExists")
             //{
             //    Console.WriteLine(rcUsers.ToString());
             //    //Console.ReadLine();
             //}
-            //ErrorCodes rcUsersTable = userTree.CreateTable("Users", UsersTableSchema, connectionStringUsers);
-            //ErrorCodes rcFollowersTable = userTree.CreateTable("Followers", UsersTableSchema, connectionStringUsers);
-            //ErrorCodes rcTweetsTable = userTree.CreateTable("Tweets", TweetsTableSchema, connectionStringUsers);
-            //ErrorCodes rcReTweetsTable = userTree.CreateTable("ReTweets", ReTweetsTableSchema, connectionStringUsers);
+            ErrorCodes rcUsersTable = userTree.CreateTable("Users", UsersTableSchema, connectionStringUsers);
+            ErrorCodes rcFollowersTable = userTree.CreateTable("Followers", UsersTableSchema, connectionStringUsers);
+            ErrorCodes rcTweetsTable = userTree.CreateTable("Tweets", TweetsTableSchema, connectionStringUsers);
+            ErrorCodes rcReTweetsTable = userTree.CreateTable("ReTweets", ReTweetsTableSchema, connectionStringUsers);
 
             rcUsers = userTree.ReadTxtFile(System.Configuration.ConfigurationManager.AppSettings["UsersListFilePath"], ref fileContents);
             companyNames = userTree.ParseString(fileContents);
             companyNames = TwitterUserTree.RemoveStringFromName(companyNames);
-            
-            //for (int CurrentCompany = 0; CurrentCompany < NumOfCompaniesToSearch; CurrentCompany++)
-            //{
-            //    twitterUsers = TwitterUserTree.SearchUser(token, companyNames[CurrentCompany]);      //Search user
 
-            //    userTree.InitiateUserToDB(twitterUsers[0], connectionStringUsers, twitterUsers[0].Id.ToString());    //Initiate user to data base
 
-            //    if (twitterUsers.Count > 0)
-            //    {
-            //        try
-            //        {
-            //            userTree.GetTweets(twitterUsers[0], token, connectionStringUsers);   //Get Tweets and ReTweets and initiate to data base
-            //        }
-            //        catch (WebException wex)
-            //        {
-            //            Console.WriteLine(wex.Message);
-            //        }
 
-            //        try
-            //        {
-            //            userTree.GetFollowers(twitterUsers[0], token, connectionStringUsers);       //Get Followers and initiate to data base
-            //            List<string> CurrFollowers = userTree.GetCurrFollowersFromDB(twitterUsers[0], connectionStringUsers);
-            //        }
-            //        catch (WebException wex)
-            //        {
-            //            Console.WriteLine(wex.Message); ;
-            //        }
-            //    }
-            //}
-
-            int depth = 1;
+            int depth = int.Parse(System.Configuration.ConfigurationManager.AppSettings["SearchDepth"]);
 
 
             foreach (var company in companyNames)
             {
                 List<IUser> twitterUsers = TwitterUserTree.SearchUser(token, company);      //Search user
-                //userTree.InitiateUserToDB(twitterUsers[0], connectionStringUsers);
+                userTree.InitiateUserToDB(twitterUsers[0], connectionStringUsers);
                 userTree.GetTwitterTreeRec(depth, twitterUsers[0], token, connectionStringUsers);  
             }
             
@@ -116,3 +89,32 @@ namespace UserSearch1
         }
     }
 }
+
+//for (int CurrentCompany = 0; CurrentCompany < NumOfCompaniesToSearch; CurrentCompany++)
+//{
+//    twitterUsers = TwitterUserTree.SearchUser(token, companyNames[CurrentCompany]);      //Search user
+
+//    userTree.InitiateUserToDB(twitterUsers[0], connectionStringUsers, twitterUsers[0].Id.ToString());    //Initiate user to data base
+
+//    if (twitterUsers.Count > 0)
+//    {
+//        try
+//        {
+//            userTree.GetTweets(twitterUsers[0], token, connectionStringUsers);   //Get Tweets and ReTweets and initiate to data base
+//        }
+//        catch (WebException wex)
+//        {
+//            Console.WriteLine(wex.Message);
+//        }
+
+//        try
+//        {
+//            userTree.GetFollowers(twitterUsers[0], token, connectionStringUsers);       //Get Followers and initiate to data base
+//            List<string> CurrFollowers = userTree.GetCurrFollowersFromDB(twitterUsers[0], connectionStringUsers);
+//        }
+//        catch (WebException wex)
+//        {
+//            Console.WriteLine(wex.Message); ;
+//        }
+//    }
+//}

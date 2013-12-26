@@ -322,11 +322,11 @@ namespace UserSearch1
             return rc;
         }
 
-        public void InitiateFollowersListToDB(List<IUser> users, string connectionstring)
+        public void InitiateFollowersListToDB(String iParentID, List<IUser> users, string connectionstring)
         {
             foreach (var user in users)
 	        {
-		        InitiateFollowerToDB(user, connectionstring, user.IdStr);
+                InitiateFollowerToDB(user, connectionstring, iParentID);
 	        }
         }
 
@@ -595,54 +595,58 @@ namespace UserSearch1
 
         //--------------------------------------------------------------------------------------
 
-        public void GetFollowers(IUser User, IToken token, string connectionStringUsers, int iNumberOfFollowersToGet)
-        {
-            List<long> followersIDs = new List<long>();
+        //public void GetFollowers(IUser User, IToken token, string connectionStringUsers, int iNumberOfFollowersToGet)
+        //{
+        //    List<long> followersIDs = new List<long>();
 
-            if (iNumberOfFollowersToGet <= User.FollowersCount)
-            {
-                followersIDs = User.GetFollowerIds(token, false, 0, iNumberOfFollowersToGet);
+        //    if (iNumberOfFollowersToGet <= User.FollowersCount)
+        //    {
+        //        followersIDs = User.GetFollowerIds(token, false, 0, iNumberOfFollowersToGet);
 
-                List<IUser> currFollowers = UserUtils.Lookup(followersIDs, new List<string>(), token);
+        //        List<IUser> currFollowers = UserUtils.Lookup(followersIDs, new List<string>(), token);
 
-            }
-            else
-            {
-                throw new Exception("Error: Number of followers to get is greater than the user actual followers number");
-            }
+        //    }
+        //    else
+        //    {
+        //        throw new Exception("Error: Number of followers to get is greater than the user actual followers number");
+        //    }
 
-            //if (followersIDs.Count > 0)
-            //{
-            //    List<IUser> currFollowers = Tweetinvi.UserUtils.Lookup(followersIDs, new List<string>(), token);   //Get followers general info by id
+        //    //if (followersIDs.Count > 0)
+        //    //{
+        //    //    List<IUser> currFollowers = Tweetinvi.UserUtils.Lookup(followersIDs, new List<string>(), token);   //Get followers general info by id
 
-            //    foreach (var follower in currFollowers)
-            //    {
-            //        InitiateFollowerToDB(follower, connectionStringUsers, User.IdStr);   //Initiate followers to data base
-            //        //if (follower.FollowersCount <= 50)
-            //        //{
-            //        //GetTweets(follower, token, connectionStringUsers);
-            //        //GetFollowers(follower, token, connectionStringUsers);
-            //        //}
-            //    }
-            //}
-        }
+        //    //    foreach (var follower in currFollowers)
+        //    //    {
+        //    //        InitiateFollowerToDB(follower, connectionStringUsers, User.IdStr);   //Initiate followers to data base
+        //    //        //if (follower.FollowersCount <= 50)
+        //    //        //{
+        //    //        //GetTweets(follower, token, connectionStringUsers);
+        //    //        //GetFollowers(follower, token, connectionStringUsers);
+        //    //        //}
+        //    //    }
+        //    //}
+        //}
 
-        public void GetFollowers(IUser User, IToken token, int iNumberOfFollowersToGet)
+        public List<IUser> GetFollowers(IUser iUser, IToken iToken, string iConnectionString, int iNumberOfFollowersToGet)
         {
             List<long> followersIDs = null;
+            List<IUser> currFollowers = null;
 
-            if (iNumberOfFollowersToGet <= User.FollowersCount)
+            if (iNumberOfFollowersToGet <= iUser.FollowersCount)
             {
-                followersIDs = User.GetFollowerIds(token, iNumberOfFollowersToGet, false, 0);
-                
+                //Get Users from twitter
+                followersIDs = iUser.GetFollowerIds(iToken, iNumberOfFollowersToGet, false, 0);
+                currFollowers = UserUtils.Lookup(followersIDs, new List<string>(), iToken);
 
-                List<IUser> currFollowers = UserUtils.Lookup(followersIDs, new List<string>(), token);
-
+                //Add users to DB
+                InitiateFollowersListToDB( iUser.IdStr, currFollowers, iConnectionString);
             }
             else
             {
                 throw new Exception("Error: Number of followers to get is greater than the user actual followers number");
             }
+
+            return currFollowers;
         }
 
         List<IUser> GetFollowersList(IUser User, IToken token)
@@ -655,7 +659,7 @@ namespace UserSearch1
             return currFollowers;
         }
 
-        public void GetTweets(IUser User, IToken token, string connectionStringUsers)
+        public void GetTweets(IUser User, IToken token, string connectionStringUsers, bool iGetRetweets)
         {
             List<ITweet> Tweets = null;
 
@@ -693,7 +697,10 @@ namespace UserSearch1
                 {
                     InitiateTweetToDB(Tweet, connectionStringUsers, User.IdStr);   //Initiate Tweets to data base FOR FIRST TIME
 
-                    GetRetweetsFromTweet(Tweet, connectionStringUsers, User); //Get Retweets From Tweet And Initiate To Data Base FOR FIRST TIME
+                    if (iGetRetweets)
+                    {
+                        GetRetweetsFromTweet(Tweet, connectionStringUsers, User); //Get Retweets From Tweet And Initiate To Data Base FOR FIRST TIME 
+                    }
                 }
             }
         }
@@ -740,25 +747,42 @@ namespace UserSearch1
 
         //--------------------------------------------------------------------------------------
         
-        public void GetTwitterTreeRec(int depth, IUser User, IToken token, string connectionStringUsers)
+        public void GetTwitterTreeRec(int iDepth, IUser iUser, IToken iToken, string iConnectionString)
         {
 
         //This is a Recursive data collection function
         //The parameter depth specifies the order of depth of the network to retrieve
 
-            if (depth == 1) //if depth = 1, collect only the initiated User's followers and tweets
+            if (iDepth == 1) //if depth = 1, collect only the initiated User's followers and tweets
             {
-	            GetTweets(User, token, connectionStringUsers);
-	            GetFollowers(User, token, 6000);
+                GetTweets(iUser, iToken, iConnectionString, true);
+
+                if ((int)iUser.FollowersCount <= 6000)
+                {
+                    GetFollowers(iUser, iToken, iConnectionString, (int)iUser.FollowersCount);
+                }
+                else
+                {
+                    GetFollowers(iUser, iToken, iConnectionString, 6000);
+                }
             }	
             else //If depth > 1, dive to depth and go back while collecting from each stair (depth = 1)
             {
-	            GetTweets(User, token, connectionStringUsers);
-	            List<IUser> Followers = GetFollowersList(User, token);
+                GetTweets(iUser, iToken, iConnectionString, true);
+                
+                List<IUser> Followers = null;
+                if ((int)iUser.FollowersCount <= 6000)
+                {
+                    Followers = GetFollowers(iUser, iToken, iConnectionString, (int)iUser.FollowersCount);
+                }
+                else
+                {
+                    Followers = GetFollowers(iUser, iToken, iConnectionString, 6000);
+                }
 
 	            foreach (var Follower in Followers)
-	            {	 
-		            GetTwitterTreeRec(depth-1,Follower,token,connectionStringUsers);
+	            {
+                    GetTwitterTreeRec(iDepth - 1, Follower, iToken, iConnectionString);
 	            }
             }
         }
