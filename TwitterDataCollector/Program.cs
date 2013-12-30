@@ -14,6 +14,7 @@ using System;
 using System.Xml;
 using System.IO;
 using System.Diagnostics;
+using System.Reflection;
 //using Microsoft.NodeXL.ExcelTemplatePlugIns;
 
 namespace UserSearch1
@@ -27,15 +28,8 @@ namespace UserSearch1
             int NumOfCompaniesToSearch = 1;
 
             //string connectionStringUsers = string.Format("DataSource=\"{0}\"; Password='{1}'", "TwitterUsers.sdf", "Users");
-            
-            string connectionStringUsers = string.Format("DataSource=\"{0}\"", "TwitterUsers.sdf");
-            
-            string UsersTableSchema = @"(UserID bigint, Name nvarchar (30) not null, Follows nvarchar (4000), Description nvarchar (4000), 
-                                        Screen_Name nvarchar (25), Followers_Count int, Friends_Count int, Location nvarchar (30), 
-                                        Twitter_Name nvarchar (30), Time_Zone nvarchar (40), Created_At nvarchar (40), Time_Stamp nvarchar (40))";
-            
-            string TweetsTableSchema = @"(TweetID nvarchar (25) PRIMARY KEY, UserID nvarchar (25), Tweet nvarchar (4000))";
-            string ReTweetsTableSchema = @"(TweetID nvarchar (25) PRIMARY KEY, UserID nvarchar (25), SourceTweetID nvarchar (25), TimeOfTweet nvarchar (40))";
+
+            string connectionString = string.Format("DataSource=\"TwitterData_{0}.sdf\"", DateTime.Now.ToString("dd.MM.yyyy.HH.mm.ss.ffff"));
             
             string fileContents = string.Empty;
             List<String> companyNames;
@@ -55,38 +49,63 @@ namespace UserSearch1
             IToken token = new Token(AccessToken2, AccessTokenSecret2, ConsumerKey2, ConsumerSecret2);
             ErrorCodes rcUsers = ErrorCodes.OK;
 
-            rcUsers = userTree.CreateDB("TwitterUsers.sdf", connectionStringUsers);
-            //if (rcUsers.ToString() != "AlreadyExists")
-            //{
-            //    Console.WriteLine(rcUsers.ToString());
-            //    //Console.ReadLine();
-            //}
-            ErrorCodes rcUsersTable = userTree.CreateTable("Users", UsersTableSchema, connectionStringUsers);
-            ErrorCodes rcFollowersTable = userTree.CreateTable("Followers", UsersTableSchema, connectionStringUsers);
-            ErrorCodes rcTweetsTable = userTree.CreateTable("Tweets", TweetsTableSchema, connectionStringUsers);
-            ErrorCodes rcReTweetsTable = userTree.CreateTable("ReTweets", ReTweetsTableSchema, connectionStringUsers);
+            string currentRunningDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            SqlCeConnectionStringBuilder sqlCeBuilder = new SqlCeConnectionStringBuilder(connectionString);
+            rcUsers = userTree.CreateDB(Path.Combine(currentRunningDirectory, sqlCeBuilder.DataSource), connectionString);
+            
+            ErrorCodes rcUsersTable = userTree.CreateTable("Users", TwitterUserTree.UsersTableSchema, connectionString);
+            ErrorCodes rcFollowersTable = userTree.CreateTable("Followers", TwitterUserTree.UsersTableSchema, connectionString);
+            ErrorCodes rcTweetsTable = userTree.CreateTable("Tweets", TwitterUserTree.TweetsTableSchema, connectionString);
+            ErrorCodes rcReTweetsTable = userTree.CreateTable("ReTweets", TwitterUserTree.ReTweetsTableSchema, connectionString);
 
             rcUsers = userTree.ReadTxtFile(System.Configuration.ConfigurationManager.AppSettings["UsersListFilePath"], ref fileContents);
             companyNames = userTree.ParseString(fileContents);
             companyNames = TwitterUserTree.RemoveStringFromName(companyNames);
 
-
-
             int depth = int.Parse(System.Configuration.ConfigurationManager.AppSettings["SearchDepth"]);
+            int maxFollowersToGetForFirstLevel = int.Parse(System.Configuration.ConfigurationManager.AppSettings["MaxFollowersToGetForFirstLevel"]);
+            int maxFollowersToGetAfterFirstLevel = int.Parse(System.Configuration.ConfigurationManager.AppSettings["MaxFollowersToGetAfterFirstLevel"]);
 
-
+            int numFollowersToGetForFirstLevel = maxFollowersToGetForFirstLevel;
             foreach (var company in companyNames)
             {
-                List<IUser> twitterUsers = TwitterUserTree.SearchUser(token, company);      //Search user
-                userTree.InitiateUserToDB(twitterUsers[0], connectionStringUsers);
-                userTree.GetTwitterTreeRec(depth, twitterUsers[0], token, connectionStringUsers);  
+                List<IUser> twitterUsers = TwitterUserTree.SearchUser(token, company);//Search user
+                userTree.InitiateUserToDB(twitterUsers[0], connectionString);
+
+                if (maxFollowersToGetForFirstLevel == 0)
+                {
+                    numFollowersToGetForFirstLevel = (int)twitterUsers[0].FollowersCount;
+                }
+
+                if (numFollowersToGetForFirstLevel > (int)twitterUsers[0].FollowersCount)
+                {
+                    numFollowersToGetForFirstLevel = (int)twitterUsers[0].FollowersCount;
+                }
+
+                List<IUser> companyFollowers = userTree.GetFollowers(twitterUsers[0], token, connectionString, numFollowersToGetForFirstLevel);
+
+                userTree.GetTweets(twitterUsers[0], token, connectionString, true);
+
+                if (depth > 2)
+                {
+                    int numFollowersToGet = maxFollowersToGetAfterFirstLevel;
+                    foreach (User follower in companyFollowers)
+                    {
+                        if (maxFollowersToGetAfterFirstLevel == 0)
+                        {
+                            numFollowersToGet = (int)follower.FollowersCount;
+                        }
+
+                        userTree.GetFollowerInformationRec(follower, token, depth - 2, numFollowersToGet, connectionString);
+                    } 
+                }
+                
+                //userTree.GetTwitterTreeRec(depth, twitterUsers[0], token, connectionString);  
             }
             
-            
-
-            //Console.WriteLine("userTree.CreateDB returned: " + rcUsers);
-            //Console.WriteLine("userTree.CreateDB returned: " + rcTweets);
         }
+
+        
     }
 }
 

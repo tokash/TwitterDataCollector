@@ -12,13 +12,13 @@ namespace UserSearch1
     class TwitterUserTree
     {
         private const int MaxChars = 4000;
-        
-        private const string UsersTableSchema = @"(UserID bigint PRIMARY KEY, Name nvarchar (30) not null, Follows nvarchar (4000), 
-                                                Description nvarchar (4000), Screen_Name nvarchar (25), Followers_Count int, 
-                                                Friends_Count int, Location nvarchar (30), Twitter_Name nvarchar (30), 
-                                                Time_Zone nvarchar (40), Created_At nvarchar (40))";
-        
-        private const string TweetsTableSchema = @"(TweetID int PRIMARY KEY, UserID nvrchar (25), TimeOfTweet nvrchar (40)";
+
+        public static string UsersTableSchema = @"(UserID bigint, Name nvarchar (30) not null, Follows nvarchar (4000), Description nvarchar (4000), 
+                                        Screen_Name nvarchar (25), Followers_Count int, Friends_Count int, Favourites_Count int, Tweet_Count int, Location nvarchar (30), 
+                                        Twitter_Name nvarchar (30), Time_Zone nvarchar (40), Created_At nvarchar (40), Time_Stamp nvarchar (40))";
+
+        public static string TweetsTableSchema = @"(TweetID nvarchar (25) PRIMARY KEY, UserID nvarchar (25), Tweet nvarchar (4000), TimeOfTweet nvarchar (40))";
+        public static string ReTweetsTableSchema = @"(TweetID nvarchar (25) PRIMARY KEY, UserID nvarchar (25), SourceTweetID nvarchar (25), TimeOfReTweet nvarchar (40))";
         
         SqlCeConnection mDBConnection = null;
 
@@ -32,28 +32,35 @@ namespace UserSearch1
         
         //--------------------------------------------------------------------------------------
 
-        public ErrorCodes CreateDB(string filepath, string ConnectionString)
+        public ErrorCodes CreateDB(string iFullPath, string iConnectionString)
         {
 
             ErrorCodes rc = ErrorCodes.OK;
 
-            if (!File.Exists(filepath))
+            if (Directory.Exists(Path.GetDirectoryName(iFullPath)))
             {
 
-                try
+                if (!File.Exists(Path.GetFileName(iFullPath)))
                 {
-                    SqlCeEngine db = new SqlCeEngine(ConnectionString);
-                    db.CreateDatabase();
-                    //CreateTable(Name, Schema, ConnectionString);
+                    try
+                    {
+                        SqlCeEngine db = new SqlCeEngine(iConnectionString);
+                        db.CreateDatabase();
+                        //CreateTable(Name, Schema, ConnectionString);
+                    }
+                    catch (Exception)
+                    {
+                        rc = ErrorCodes.ErrorOnCreating;
+                    } 
                 }
-                catch (Exception)
+                else
                 {
-                    rc = ErrorCodes.ErrorOnCreating;
+                    rc = ErrorCodes.AlreadyExists;
                 }
             }
             else
             {
-                rc = ErrorCodes.AlreadyExists;
+                throw new DirectoryNotFoundException();
             }
 
             return rc;
@@ -224,8 +231,8 @@ namespace UserSearch1
             }
 
             string sqlCommand = "INSERT INTO "
-                              + "Users(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Friends_Count, Location, Twitter_Name, Time_Zone, Created_At)" + 
-                            "VALUES(@UserID, @Name, @Follows, @Description, @Screen_Name, @Followers_Count, @Friends_Count, @Location, @Twitter_Name, @Time_Zone, @Created_At)";
+                              + "Users(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Friends_Count, Favourites_Count, Tweet_Count, Location, Twitter_Name, Time_Zone, Created_At)" +
+                            "VALUES(@UserID, @Name, @Follows, @Description, @Screen_Name, @Followers_Count, @Friends_Count, @Favourites_Count, @Tweet_Count,  @Location, @Twitter_Name, @Time_Zone, @Created_At)";
             
             if (mDBConnection.State == ConnectionState.Closed)
             {
@@ -242,6 +249,8 @@ namespace UserSearch1
             cmd.Parameters.AddWithValue("Screen_Name", user.ScreenName);
             cmd.Parameters.AddWithValue("Followers_Count", user.FollowersCount);
             cmd.Parameters.AddWithValue("Friends_Count", user.FriendsCount);
+            cmd.Parameters.AddWithValue("Favourites_Count", user.FavouritesCount);
+            cmd.Parameters.AddWithValue("Tweet_Count", user.StatusesCount);
             cmd.Parameters.AddWithValue("Location", user.Location);
             cmd.Parameters.AddWithValue("Twitter_Name", user.Name);
             cmd.Parameters.AddWithValue("Time_Zone", (user.TimeZone != null) ? user.TimeZone : "");
@@ -274,8 +283,8 @@ namespace UserSearch1
             }
 
             string sqlCommand = "INSERT INTO "
-                              + "Followers(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Friends_Count, Location, Twitter_Name, Created_At, Time_Stamp)" +
-                            "VALUES(@UserID, @Name, @Follows, @Description, @Screen_Name, @Followers_Count, @Friends_Count, @Location, @Twitter_Name, @Created_At, @Time_Stamp)";
+                              + "Followers(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Friends_Count, Favourites_Count, Tweet_Count, Location, Twitter_Name, Created_At, Time_Stamp)" +
+                            "VALUES(@UserID, @Name, @Follows, @Description, @Screen_Name, @Followers_Count, @Friends_Count, @Favourites_Count, @Tweet_Count, @Location, @Twitter_Name, @Created_At, @Time_Stamp)";
 
             if (mDBConnection.State == ConnectionState.Closed)
             {
@@ -300,6 +309,8 @@ namespace UserSearch1
             cmd.Parameters.AddWithValue("Screen_Name", user.ScreenName);
             cmd.Parameters.AddWithValue("Followers_Count", user.FollowersCount);
             cmd.Parameters.AddWithValue("Friends_Count", user.FriendsCount);
+            cmd.Parameters.AddWithValue("Favourites_Count", user.FavouritesCount);
+            cmd.Parameters.AddWithValue("Tweet_Count", user.StatusesCount);
             cmd.Parameters.AddWithValue("Location", user.Location);
             cmd.Parameters.AddWithValue("Twitter_Name", user.Name);
             //cmd.Parameters.AddWithValue("Time_Zone", user.TimeZone);
@@ -339,7 +350,7 @@ namespace UserSearch1
                 mDBConnection = new SqlCeConnection(connectionstring);
             }
 
-            string sqlCommand = "INSERT INTO Tweets(TweetId, UserId, Tweet) VALUES(@TweetId, @UserId, @Tweet)";
+            string sqlCommand = "INSERT INTO Tweets(TweetId, UserId, Tweet, TimeOfTweet) VALUES(@TweetId, @UserId, @Tweet, @TimeOfTweet)";
 
             if (mDBConnection.State == ConnectionState.Closed)
             {
@@ -371,6 +382,7 @@ namespace UserSearch1
                 cmd.Parameters.AddWithValue("TweetId", Tweet.IdStr);//TweetParsed[0]);
                 cmd.Parameters.AddWithValue("UserId", UserId);
                 cmd.Parameters.AddWithValue("Tweet", Tweet.Text);
+                cmd.Parameters.AddWithValue("TimeOfTweet", Tweet.CreatedAt.ToString());
             }
             try
             {
@@ -406,7 +418,7 @@ namespace UserSearch1
                 mDBConnection = new SqlCeConnection(connectionstring);
             }
 
-            string sqlCommand = "INSERT INTO ReTweets(TweetId, UserId, SourceTweetID, TimeOfTweet) VALUES(@TweetId, @UserId, @SourceTweetID, @TimeOfTweet)";
+            string sqlCommand = "INSERT INTO ReTweets(TweetId, UserId, SourceTweetID, TimeOfReTweet) VALUES(@TweetId, @UserId, @SourceTweetID, @TimeOfReTweet)";
 
             if (mDBConnection.State == ConnectionState.Closed)
             {
@@ -438,7 +450,7 @@ namespace UserSearch1
                 cmd.Parameters.AddWithValue("TweetId", Tweet.IdStr);//TweetParsed[0]);
                 cmd.Parameters.AddWithValue("UserId", Tweet.Creator.IdStr);
                 cmd.Parameters.AddWithValue("SourceTweetID", Tweet.Retweeting.IdStr);
-                cmd.Parameters.AddWithValue("TimeOfTweet", Tweet.CreatedAt.ToString());
+                cmd.Parameters.AddWithValue("TimeOfReTweet", Tweet.CreatedAt.ToString());
             }
             try
             {
@@ -785,8 +797,40 @@ namespace UserSearch1
                     GetTwitterTreeRec(iDepth - 1, Follower, iToken, iConnectionString);
 	            }
             }
-        }
+        }        
 
-        
+        public void GetFollowerInformationRec(IUser iUser, IToken iToken, int iDepth, int iMaxFollowersToGet, string iConnectionString)
+        {
+            int numFollowersToGet = 0;
+
+            if (iMaxFollowersToGet < (int)iUser.FollowersCount)
+            {
+                numFollowersToGet = iMaxFollowersToGet;
+            }
+            else
+            {
+                numFollowersToGet = (int)iUser.FollowersCount;
+            }
+
+            if (numFollowersToGet > (int)iUser.FollowersCount)
+            {
+                numFollowersToGet = (int)iUser.FollowersCount;
+            }
+
+            if (iDepth == 1)
+            {
+                GetFollowers(iUser, iToken, iConnectionString, numFollowersToGet);
+            }
+            else
+            {
+
+                List<IUser> currentUserFollowers = GetFollowers(iUser, iToken, iConnectionString, numFollowersToGet);
+                foreach (IUser follower in currentUserFollowers)
+                {
+                    GetFollowerInformationRec(follower, iToken, iDepth - 1, numFollowersToGet, iConnectionString);
+                }
+            }
+
+        }
     }
 }
