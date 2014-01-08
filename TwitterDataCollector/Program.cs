@@ -84,9 +84,10 @@ namespace UserSearch1
 
                 List<IUser> companyFollowers = userTree.GetFollowers(twitterUsers[0], token, connectionString, numFollowersToGetForFirstLevel);
 
-                userTree.GetTweets(twitterUsers[0], token, connectionString, true);
+                //userTree.GetTweets(twitterUsers[0], token, connectionString, true);
+                userTree.GetTweetsBetweenDates(twitterUsers[0], token, connectionString, true, true, true, DateTime.Now.Subtract(new System.TimeSpan(7,0,0,0)), DateTime.Now);
 
-                if (depth > 2)
+                if (depth > 1)
                 {
                     int numFollowersToGet = maxFollowersToGetAfterFirstLevel;
                     foreach (User follower in companyFollowers)
@@ -96,7 +97,7 @@ namespace UserSearch1
                             numFollowersToGet = (int)follower.FollowersCount;
                         }
 
-                        userTree.GetFollowerInformationRec(follower, token, depth - 2, numFollowersToGet, connectionString);
+                        userTree.GetFollowerInformationRec(follower, token, depth - 1, numFollowersToGet, connectionString);
                     } 
                 }
                 

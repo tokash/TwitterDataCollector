@@ -13,11 +13,11 @@ namespace UserSearch1
     {
         private const int MaxChars = 4000;
 
-        public static string UsersTableSchema = @"(UserID bigint, Name nvarchar (30) not null, Follows nvarchar (4000), Description nvarchar (4000), 
-                                        Screen_Name nvarchar (25), Followers_Count int, Friends_Count int, Favourites_Count int, Tweet_Count int, Location nvarchar (30), 
+        public static string UsersTableSchema = @"(UserID nvarchar (25), Name nvarchar (30) not null, Follows nvarchar (4000), Description nvarchar (4000), 
+                                        Screen_Name nvarchar (25), Followers_Count int, Friends_Count int, Favourites_Count int, Tweet_Count int, Retweet_Count bigint, Location nvarchar (30), 
                                         Twitter_Name nvarchar (30), Time_Zone nvarchar (40), Created_At nvarchar (40), Time_Stamp nvarchar (40))";
 
-        public static string TweetsTableSchema = @"(TweetID nvarchar (25) PRIMARY KEY, UserID nvarchar (25), Tweet nvarchar (4000), TimeOfTweet nvarchar (40))";
+        public static string TweetsTableSchema = @"(TweetID nvarchar (25) PRIMARY KEY, UserID nvarchar (25), Tweet nvarchar (4000), Retweet_Count int, TimeOfTweet nvarchar (40))";
         public static string ReTweetsTableSchema = @"(TweetID nvarchar (25) PRIMARY KEY, UserID nvarchar (25), SourceTweetID nvarchar (25), TimeOfReTweet nvarchar (40))";
         
         SqlCeConnection mDBConnection = null;
@@ -231,8 +231,8 @@ namespace UserSearch1
             }
 
             string sqlCommand = "INSERT INTO "
-                              + "Users(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Friends_Count, Favourites_Count, Tweet_Count, Location, Twitter_Name, Time_Zone, Created_At)" +
-                            "VALUES(@UserID, @Name, @Follows, @Description, @Screen_Name, @Followers_Count, @Friends_Count, @Favourites_Count, @Tweet_Count,  @Location, @Twitter_Name, @Time_Zone, @Created_At)";
+                              + "Users(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Friends_Count, Favourites_Count, Tweet_Count, Retweet_Count, Location, Twitter_Name, Time_Zone, Created_At)" +
+                            "VALUES(@UserID, @Name, @Follows, @Description, @Screen_Name, @Followers_Count, @Friends_Count, @Favourites_Count, @Tweet_Count, @Retweet_Count, @Location, @Twitter_Name, @Time_Zone, @Created_At)";
             
             if (mDBConnection.State == ConnectionState.Closed)
             {
@@ -251,6 +251,7 @@ namespace UserSearch1
             cmd.Parameters.AddWithValue("Friends_Count", user.FriendsCount);
             cmd.Parameters.AddWithValue("Favourites_Count", user.FavouritesCount);
             cmd.Parameters.AddWithValue("Tweet_Count", user.StatusesCount);
+            cmd.Parameters.AddWithValue("Retweet_Count", 0);
             cmd.Parameters.AddWithValue("Location", user.Location);
             cmd.Parameters.AddWithValue("Twitter_Name", user.Name);
             cmd.Parameters.AddWithValue("Time_Zone", (user.TimeZone != null) ? user.TimeZone : "");
@@ -283,8 +284,8 @@ namespace UserSearch1
             }
 
             string sqlCommand = "INSERT INTO "
-                              + "Followers(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Friends_Count, Favourites_Count, Tweet_Count, Location, Twitter_Name, Created_At, Time_Stamp)" +
-                            "VALUES(@UserID, @Name, @Follows, @Description, @Screen_Name, @Followers_Count, @Friends_Count, @Favourites_Count, @Tweet_Count, @Location, @Twitter_Name, @Created_At, @Time_Stamp)";
+                              + "Followers(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Friends_Count, Favourites_Count, Tweet_Count, Retweet_Count, Location, Twitter_Name, Created_At, Time_Stamp)" +
+                            "VALUES(@UserID, @Name, @Follows, @Description, @Screen_Name, @Followers_Count, @Friends_Count, @Favourites_Count, @Tweet_Count, @Retweet_Count, @Location, @Twitter_Name, @Created_At, @Time_Stamp)";
 
             if (mDBConnection.State == ConnectionState.Closed)
             {
@@ -311,6 +312,7 @@ namespace UserSearch1
             cmd.Parameters.AddWithValue("Friends_Count", user.FriendsCount);
             cmd.Parameters.AddWithValue("Favourites_Count", user.FavouritesCount);
             cmd.Parameters.AddWithValue("Tweet_Count", user.StatusesCount);
+            cmd.Parameters.AddWithValue("Retweet_Count", 0);
             cmd.Parameters.AddWithValue("Location", user.Location);
             cmd.Parameters.AddWithValue("Twitter_Name", user.Name);
             //cmd.Parameters.AddWithValue("Time_Zone", user.TimeZone);
@@ -350,7 +352,7 @@ namespace UserSearch1
                 mDBConnection = new SqlCeConnection(connectionstring);
             }
 
-            string sqlCommand = "INSERT INTO Tweets(TweetId, UserId, Tweet, TimeOfTweet) VALUES(@TweetId, @UserId, @Tweet, @TimeOfTweet)";
+            string sqlCommand = "INSERT INTO Tweets(TweetId, UserId, Tweet, Retweet_Count, TimeOfTweet) VALUES(@TweetId, @UserId, @Tweet, @Retweet_Count, @TimeOfTweet)";
 
             if (mDBConnection.State == ConnectionState.Closed)
             {
@@ -382,6 +384,7 @@ namespace UserSearch1
                 cmd.Parameters.AddWithValue("TweetId", Tweet.IdStr);//TweetParsed[0]);
                 cmd.Parameters.AddWithValue("UserId", UserId);
                 cmd.Parameters.AddWithValue("Tweet", Tweet.Text);
+                cmd.Parameters.AddWithValue("Retweet_Count", Tweet.RetweetCount);
                 cmd.Parameters.AddWithValue("TimeOfTweet", Tweet.CreatedAt.ToString());
             }
             try
@@ -500,6 +503,37 @@ namespace UserSearch1
             }
 
             return Response;    
+        }
+
+        public int ExecuteSQLNonQuery(string cmd, string ConnectionString)
+        {
+            if (mDBConnection == null)
+            {
+                mDBConnection = new SqlCeConnection(ConnectionString);
+            }
+
+            ErrorCodes rc = ErrorCodes.OK;
+
+            if (mDBConnection.State == ConnectionState.Closed)
+            {
+                mDBConnection.Open();
+            }
+
+            SqlCeCommand cmd1 = new SqlCeCommand(cmd, mDBConnection);
+
+            int rowsAffected = 0;
+
+            try
+            {
+                rowsAffected = cmd1.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+                rc = ErrorCodes.ErrorOnCreating;
+            }
+
+            return rowsAffected;
         }
 
         public static void API_Timer()
@@ -646,12 +680,26 @@ namespace UserSearch1
 
             if (iNumberOfFollowersToGet <= iUser.FollowersCount)
             {
-                //Get Users from twitter
-                followersIDs = iUser.GetFollowerIds(iToken, iNumberOfFollowersToGet, false, 0);
-                currFollowers = UserUtils.Lookup(followersIDs, new List<string>(), iToken);
+                try
+                {
+                    //Get Users from twitter
+                    followersIDs = iUser.GetFollowerIds(iToken, iNumberOfFollowersToGet, false, 0);
+                    currFollowers = UserUtils.Lookup(followersIDs, new List<string>(), iToken);
 
-                //Add users to DB
-                InitiateFollowersListToDB( iUser.IdStr, currFollowers, iConnectionString);
+                    //Add users to DB
+                    InitiateFollowersListToDB(iUser.IdStr, currFollowers, iConnectionString);
+                }
+                catch (Exception ex)
+                {
+                    if (ex.ToString().Contains("401"))
+                    {
+                        Console.WriteLine(string.Format("{0}: The user: {1} ({2}) doesn't allow his followers to be queried.", DateTime.Now, iUser.IdStr, iUser.Name));
+                    }
+                    else
+                    {
+                        Console.WriteLine(string.Format("{0}: {1}", ex.ToString()));
+                    }
+                }
             }
             else
             {
@@ -715,6 +763,120 @@ namespace UserSearch1
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Queries twitter for tweets created between iStartDate and iEndDate
+        /// Only the first 200 tweets will be taken into account, the function doesn't use paging.
+        /// </summary>
+        /// <param name="iUser"></param>
+        /// <param name="iToken"></param>
+        /// <param name="iConnectionString"></param>
+        /// <param name="iGetRetweets"></param>
+        /// <param name="iStartTime"></param>
+        /// <param name="iUntil"></param>
+        public void GetTweetsBetweenDates(IUser iUser, IToken iToken, string iConnectionString, bool iGetRetweets, bool iIsCompany, bool iAddToDB, DateTime iSince, DateTime iUntil)
+        {
+            List<ITweet> Tweets = null;
+            List<ITweet> neededTweets = new List<ITweet>();
+
+            try
+            {
+                Tweets = iUser.GetUserTimeline(true, iToken);       //Get tweets from user
+            }
+            catch (Exception ex)
+            {
+                if (!ex.ToString().Contains("401"))
+                {
+                    throw;
+                }
+            }
+
+            if (Tweets != null)
+            {
+                for (int i = 0; i < Tweets.Count; i++)
+                {
+                    if (Tweets[i].CreatedAt > iSince && Tweets[i].CreatedAt < iUntil)
+                    {
+                        neededTweets.Add(Tweets[i]);
+                    }
+                } 
+            }
+
+            SqlCeDataReader Response = ExecuteSQLQuery("SELECT MAX(TweetID) FROM TWEETS where UserID='" + iUser.IdStr + "'", iConnectionString); //Get Last Id From Data Base (after collecting data)
+            string currUserMaxID = string.Empty;
+            if (Response != null)
+            {
+                if (Response.Read())
+                {
+                    //currUserMaxID = Response["UserID"].ToString();
+                    currUserMaxID = Response["Column1"].ToString();
+                }
+            }
+
+
+            //if (currUserMaxID != string.Empty)
+            //{
+            //    CheckForNewTweets(User, Tweets, currUserMaxID, connectionStringUsers); //Check if there are any new tweets, If new Tweets exist, initiate them to Data Base (RetWeets Are Being Initiated Here Also)
+            //}
+            //else
+            //{
+                if (iAddToDB)
+                {
+                    foreach (var Tweet in neededTweets)
+                    {
+                        InitiateTweetToDB(Tweet, iConnectionString, iUser.IdStr);   //Initiate Tweets to data base FOR FIRST TIME
+
+                        if (iGetRetweets)
+                        {
+                            GetRetweetsFromTweet(Tweet, iConnectionString, iUser); //Get Retweets From Tweet And Initiate To Data Base FOR FIRST TIME 
+                        }
+                    } 
+                }
+
+                int sumRetweetCount = 0;
+                string sqlCmd = string.Empty;
+                //update user retweet_count, distinguish between users and followers tables
+                if (iIsCompany)
+                {
+                    sqlCmd = string.Format("Select Sum(Retweet_count) from tweets where userid='{0}'", iUser.IdStr);
+                    Response = ExecuteSQLQuery(sqlCmd, iConnectionString); //Get Last Id From Data Base (after collecting data)
+                    
+                    if (Response != null)
+                    {
+                        if (Response.Read())
+                        {
+                            //currUserMaxID = Response["UserID"].ToString();
+                            try
+                            {
+                                sumRetweetCount = Int32.Parse(Response["Column1"].ToString());
+                            }
+                            catch (Exception)
+                            {
+                            }
+
+                            if (sumRetweetCount != 0)
+                            {
+                                sqlCmd = string.Format("Update Users set Retweet_count={0} where userid='{1}'", sumRetweetCount, iUser.IdStr);
+                                ExecuteSQLNonQuery(sqlCmd, iConnectionString);
+                            }
+                        }
+                    }
+                }
+                else //handle tweets for followers
+                {
+                    foreach (var Tweet in neededTweets)
+                    {
+                        sumRetweetCount += (int)Tweet.RetweetCount;
+                    }
+
+                    if (sumRetweetCount != 0)
+                    {
+                        sqlCmd = string.Format("Update followers set Retweet_count={0} where userid='{1}'", sumRetweetCount, iUser.IdStr);
+                        ExecuteSQLNonQuery(sqlCmd, iConnectionString);
+                    }
+                }
+            //}
         }
 
         List<ITweet> GetTweetsList(IUser User, IToken token, string connectionStringUsers)
@@ -817,18 +979,23 @@ namespace UserSearch1
                 numFollowersToGet = (int)iUser.FollowersCount;
             }
 
-            if (iDepth == 1)
+            if (iDepth > 0)
             {
-                GetFollowers(iUser, iToken, iConnectionString, numFollowersToGet);
-            }
-            else
-            {
-
-                List<IUser> currentUserFollowers = GetFollowers(iUser, iToken, iConnectionString, numFollowersToGet);
-                foreach (IUser follower in currentUserFollowers)
+                if (iDepth == 1)
                 {
-                    GetFollowerInformationRec(follower, iToken, iDepth - 1, numFollowersToGet, iConnectionString);
+                    GetTweetsBetweenDates(iUser, iToken, iConnectionString, false, false, false, DateTime.Now.Subtract(new System.TimeSpan(7, 0, 0, 0)), DateTime.Now);
+                    GetFollowers(iUser, iToken, iConnectionString, numFollowersToGet);
                 }
+                else
+                {
+
+                    List<IUser> currentUserFollowers = GetFollowers(iUser, iToken, iConnectionString, numFollowersToGet);
+                    foreach (IUser follower in currentUserFollowers)
+                    {
+                        GetTweetsBetweenDates(iUser, iToken, iConnectionString, false, false, false, DateTime.Now.Subtract(new System.TimeSpan(7, 0, 0, 0)), DateTime.Now);
+                        GetFollowerInformationRec(follower, iToken, iDepth - 1, numFollowersToGet, iConnectionString);
+                    }
+                } 
             }
 
         }
