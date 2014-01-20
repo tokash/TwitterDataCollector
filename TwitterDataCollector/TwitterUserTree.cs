@@ -14,7 +14,7 @@ namespace UserSearch1
         private const int MaxChars = 4000;
 
         public static string UsersTableSchema = @"(UserID nvarchar (25), Name nvarchar (30) not null, Follows nvarchar (4000), Description nvarchar (4000), 
-                                        Screen_Name nvarchar (25), Followers_Count int, Friends_Count int, Favourites_Count int, Tweet_Count int, Retweet_Count bigint, Location nvarchar (30), 
+                                        Screen_Name nvarchar (25), Followers_Count int, Friends_Count int, Favourites_Count int, Total_Tweet_Count int, Weekly_Tweet_Count int, Weekly_Retweet_Count int, Location nvarchar (30), 
                                         Twitter_Name nvarchar (30), Time_Zone nvarchar (40), Created_At nvarchar (40), Time_Stamp nvarchar (40))";
 
         public static string TweetsTableSchema = @"(TweetID nvarchar (25) PRIMARY KEY, UserID nvarchar (25), Tweet nvarchar (4000), Retweet_Count int, TimeOfTweet nvarchar (40))";
@@ -231,8 +231,8 @@ namespace UserSearch1
             }
 
             string sqlCommand = "INSERT INTO "
-                              + "Users(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Friends_Count, Favourites_Count, Tweet_Count, Retweet_Count, Location, Twitter_Name, Time_Zone, Created_At)" +
-                            "VALUES(@UserID, @Name, @Follows, @Description, @Screen_Name, @Followers_Count, @Friends_Count, @Favourites_Count, @Tweet_Count, @Retweet_Count, @Location, @Twitter_Name, @Time_Zone, @Created_At)";
+                              + "Users(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Friends_Count, Favourites_Count, Total_Tweet_Count, Weekly_Tweet_Count, Weekly_Retweet_Count, Location, Twitter_Name, Time_Zone, Created_At, Time_Stamp)" +
+                            "VALUES(@UserID, @Name, @Follows, @Description, @Screen_Name, @Followers_Count, @Friends_Count, @Favourites_Count, @Total_Tweet_Count, @Weekly_Tweet_Count, @Weekly_Retweet_Count, @Location, @Twitter_Name, @Time_Zone, @Created_At, @Time_Stamp)";
             
             if (mDBConnection.State == ConnectionState.Closed)
             {
@@ -250,12 +250,14 @@ namespace UserSearch1
             cmd.Parameters.AddWithValue("Followers_Count", user.FollowersCount);
             cmd.Parameters.AddWithValue("Friends_Count", user.FriendsCount);
             cmd.Parameters.AddWithValue("Favourites_Count", user.FavouritesCount);
-            cmd.Parameters.AddWithValue("Tweet_Count", user.StatusesCount);
-            cmd.Parameters.AddWithValue("Retweet_Count", 0);
+            cmd.Parameters.AddWithValue("Total_Tweet_Count", user.StatusesCount);
+            cmd.Parameters.AddWithValue("Weekly_Tweet_Count", -1);
+            cmd.Parameters.AddWithValue("Weekly_Retweet_Count", -1);
             cmd.Parameters.AddWithValue("Location", user.Location);
             cmd.Parameters.AddWithValue("Twitter_Name", user.Name);
             cmd.Parameters.AddWithValue("Time_Zone", (user.TimeZone != null) ? user.TimeZone : "");
             cmd.Parameters.AddWithValue("Created_At", user.CreatedAt.ToString());
+            cmd.Parameters.AddWithValue("Time_Stamp", DateTime.Now.ToString());
 
             try
             {
@@ -284,8 +286,8 @@ namespace UserSearch1
             }
 
             string sqlCommand = "INSERT INTO "
-                              + "Followers(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Friends_Count, Favourites_Count, Tweet_Count, Retweet_Count, Location, Twitter_Name, Created_At, Time_Stamp)" +
-                            "VALUES(@UserID, @Name, @Follows, @Description, @Screen_Name, @Followers_Count, @Friends_Count, @Favourites_Count, @Tweet_Count, @Retweet_Count, @Location, @Twitter_Name, @Created_At, @Time_Stamp)";
+                              + "Followers(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Friends_Count, Favourites_Count, Total_Tweet_Count, Weekly_tweet_Count, Weekly_Retweet_Count, Location, Twitter_Name, Created_At, Time_Stamp)" +
+                            "VALUES(@UserID, @Name, @Follows, @Description, @Screen_Name, @Followers_Count, @Friends_Count, @Favourites_Count, @Total_Tweet_Count, @Weekly_Tweet_Count, @Weekly_Retweet_Count, @Location, @Twitter_Name, @Created_At, @Time_Stamp)";
 
             if (mDBConnection.State == ConnectionState.Closed)
             {
@@ -311,8 +313,9 @@ namespace UserSearch1
             cmd.Parameters.AddWithValue("Followers_Count", user.FollowersCount);
             cmd.Parameters.AddWithValue("Friends_Count", user.FriendsCount);
             cmd.Parameters.AddWithValue("Favourites_Count", user.FavouritesCount);
-            cmd.Parameters.AddWithValue("Tweet_Count", user.StatusesCount);
-            cmd.Parameters.AddWithValue("Retweet_Count", 0);
+            cmd.Parameters.AddWithValue("Total_Tweet_Count", user.StatusesCount);
+            cmd.Parameters.AddWithValue("Weekly_tweet_Count", -1);
+            cmd.Parameters.AddWithValue("Weekly_Retweet_Count", -1);
             cmd.Parameters.AddWithValue("Location", user.Location);
             cmd.Parameters.AddWithValue("Twitter_Name", user.Name);
             //cmd.Parameters.AddWithValue("Time_Zone", user.TimeZone);
@@ -673,7 +676,7 @@ namespace UserSearch1
         //    //}
         //}
 
-        public List<IUser> GetFollowers(IUser iUser, IToken iToken, string iConnectionString, int iNumberOfFollowersToGet)
+        public List<IUser> GetFollowers(IUser iUser, IToken iToken, string iConnectionString, int iNumberOfFollowersToGet, bool iReturnUserList)
         {
             List<long> followersIDs = null;
             List<IUser> currFollowers = null;
@@ -697,13 +700,18 @@ namespace UserSearch1
                     }
                     else
                     {
-                        Console.WriteLine(string.Format("{0}: {1}", ex.ToString()));
+                        Console.WriteLine(string.Format("{0}: {1}", DateTime.Now, ex.ToString()));
                     }
                 }
             }
             else
             {
                 throw new Exception("Error: Number of followers to get is greater than the user actual followers number");
+            }
+
+            if (!iReturnUserList)
+            {
+                currFollowers = null;
             }
 
             return currFollowers;
@@ -778,7 +786,7 @@ namespace UserSearch1
         public void GetTweetsBetweenDates(IUser iUser, IToken iToken, string iConnectionString, bool iGetRetweets, bool iIsCompany, bool iAddToDB, DateTime iSince, DateTime iUntil)
         {
             List<ITweet> Tweets = null;
-            List<ITweet> neededTweets = new List<ITweet>();
+            List<ITweet> neededTweets = null;//new List<ITweet>();
 
             try
             {
@@ -794,12 +802,16 @@ namespace UserSearch1
 
             if (Tweets != null)
             {
-                for (int i = 0; i < Tweets.Count; i++)
+                if (Tweets.Count > 0)
                 {
-                    if (Tweets[i].CreatedAt > iSince && Tweets[i].CreatedAt < iUntil)
+                    neededTweets = new List<ITweet>();
+                    for (int i = 0; i < Tweets.Count; i++)
                     {
-                        neededTweets.Add(Tweets[i]);
-                    }
+                        if (Tweets[i].CreatedAt > iSince && Tweets[i].CreatedAt < iUntil)
+                        {
+                            neededTweets.Add(Tweets[i]);
+                        }
+                    } 
                 } 
             }
 
@@ -855,9 +867,9 @@ namespace UserSearch1
                             {
                             }
 
-                            if (sumRetweetCount != 0)
+                            if (sumRetweetCount != 0 && neededTweets != null)
                             {
-                                sqlCmd = string.Format("Update Users set Retweet_count={0} where userid='{1}'", sumRetweetCount, iUser.IdStr);
+                                sqlCmd = string.Format("Update Users set Weekly_Tweet_count = {0}, Weekly_Retweet_count={1} where userid='{2}'", neededTweets.Count, sumRetweetCount, iUser.IdStr);
                                 ExecuteSQLNonQuery(sqlCmd, iConnectionString);
                             }
                         }
@@ -865,15 +877,16 @@ namespace UserSearch1
                 }
                 else //handle tweets for followers
                 {
-                    foreach (var Tweet in neededTweets)
+                    if (neededTweets != null)
                     {
-                        sumRetweetCount += (int)Tweet.RetweetCount;
-                    }
+                        foreach (var Tweet in neededTweets)
+                        {
+                            sumRetweetCount += (int)Tweet.RetweetCount;
+                        }
 
-                    if (sumRetweetCount != 0)
-                    {
-                        sqlCmd = string.Format("Update followers set Retweet_count={0} where userid='{1}'", sumRetweetCount, iUser.IdStr);
+                        sqlCmd = string.Format("Update followers set Weekly_Tweet_count = {0}, Weekly_Retweet_count={1} where userid='{2}'", neededTweets.Count, sumRetweetCount, iUser.IdStr);
                         ExecuteSQLNonQuery(sqlCmd, iConnectionString);
+                         
                     }
                 }
             //}
@@ -920,46 +933,6 @@ namespace UserSearch1
         }
 
         //--------------------------------------------------------------------------------------
-        
-        public void GetTwitterTreeRec(int iDepth, IUser iUser, IToken iToken, string iConnectionString)
-        {
-
-        //This is a Recursive data collection function
-        //The parameter depth specifies the order of depth of the network to retrieve
-
-            if (iDepth == 1) //if depth = 1, collect only the initiated User's followers and tweets
-            {
-                GetTweets(iUser, iToken, iConnectionString, true);
-
-                if ((int)iUser.FollowersCount <= 6000)
-                {
-                    GetFollowers(iUser, iToken, iConnectionString, (int)iUser.FollowersCount);
-                }
-                else
-                {
-                    GetFollowers(iUser, iToken, iConnectionString, 6000);
-                }
-            }	
-            else //If depth > 1, dive to depth and go back while collecting from each stair (depth = 1)
-            {
-                GetTweets(iUser, iToken, iConnectionString, true);
-                
-                List<IUser> Followers = null;
-                if ((int)iUser.FollowersCount <= 6000)
-                {
-                    Followers = GetFollowers(iUser, iToken, iConnectionString, (int)iUser.FollowersCount);
-                }
-                else
-                {
-                    Followers = GetFollowers(iUser, iToken, iConnectionString, 6000);
-                }
-
-	            foreach (var Follower in Followers)
-	            {
-                    GetTwitterTreeRec(iDepth - 1, Follower, iToken, iConnectionString);
-	            }
-            }
-        }        
 
         public void GetFollowerInformationRec(IUser iUser, IToken iToken, int iDepth, int iMaxFollowersToGet, string iConnectionString)
         {
@@ -984,20 +957,102 @@ namespace UserSearch1
                 if (iDepth == 1)
                 {
                     GetTweetsBetweenDates(iUser, iToken, iConnectionString, false, false, false, DateTime.Now.Subtract(new System.TimeSpan(7, 0, 0, 0)), DateTime.Now);
-                    GetFollowers(iUser, iToken, iConnectionString, numFollowersToGet);
+                    //GetFollowers(iUser, iToken, iConnectionudenString, numFollowersToGet);
                 }
                 else
                 {
 
-                    List<IUser> currentUserFollowers = GetFollowers(iUser, iToken, iConnectionString, numFollowersToGet);
-                    foreach (IUser follower in currentUserFollowers)
+                    //List<IUser> currentUserFollowers = GetFollowers(iUser, iToken, iConnectionString, numFollowersToGet, false);
+                    GetFollowers(iUser, iToken, iConnectionString, numFollowersToGet, false);
+                    List<string> companyFollowers = GetFollowersIDs(iUser.IdStr, iConnectionString);
+
+                    foreach (string follower in companyFollowers)
                     {
+                        List<long> ids = new List<long>();
+                        ids.Add(long.Parse(follower));
+                        List<IUser> dummyCurrFollower = Tweetinvi.UserUtils.Lookup(ids, null, iToken);
+                        IUser currFollower = dummyCurrFollower[0];
+
                         GetTweetsBetweenDates(iUser, iToken, iConnectionString, false, false, false, DateTime.Now.Subtract(new System.TimeSpan(7, 0, 0, 0)), DateTime.Now);
-                        GetFollowerInformationRec(follower, iToken, iDepth - 1, numFollowersToGet, iConnectionString);
+                        GetFollowerInformationRec(currFollower, iToken, iDepth - 1, numFollowersToGet, iConnectionString);
                     }
+                    //foreach (IUser follower in currentUserFollowers)
+                    //{
+                    //    GetTweetsBetweenDates(iUser, iToken, iConnectionString, false, false, false, DateTime.Now.Subtract(new System.TimeSpan(7, 0, 0, 0)), DateTime.Now);
+                    //    GetFollowerInformationRec(follower, iToken, iDepth - 1, numFollowersToGet, iConnectionString);
+                    //}
                 } 
             }
 
         }
+
+        public List<string> GetFollowersIDs(string iParentID, string iConnectionString)
+        {
+            string sqlCmd = string.Empty;
+            List<string> followersIDs = null;
+
+            sqlCmd = string.Format("Select UserID from followers where follows='{0}'", iParentID);
+
+            SqlCeDataReader Response = ExecuteSQLQuery(sqlCmd, iConnectionString);
+
+            if (Response != null)
+            {
+                followersIDs = new List<string>();
+
+                while (Response.Read())
+                {
+                    try
+                    {
+                        followersIDs.Add(Response["UserID"].ToString());
+                    }
+                    catch (Exception)
+                    {
+                        throw;
+                    }
+                }
+            }
+
+            return followersIDs;
+        }
     }
 }
+
+//public void GetTwitterTreeRec(int iDepth, IUser iUser, IToken iToken, string iConnectionString)
+//        {
+
+//        //This is a Recursive data collection function
+//        //The parameter depth specifies the order of depth of the network to retrieve
+
+//            if (iDepth == 1) //if depth = 1, collect only the initiated User's followers and tweets
+//            {
+//                GetTweets(iUser, iToken, iConnectionString, true);
+
+//                if ((int)iUser.FollowersCount <= 6000)
+//                {
+//                    GetFollowers(iUser, iToken, iConnectionString, (int)iUser.FollowersCount);
+//                }
+//                else
+//                {
+//                    GetFollowers(iUser, iToken, iConnectionString, 6000);
+//                }
+//            }	
+//            else //If depth > 1, dive to depth and go back while collecting from each stair (depth = 1)
+//            {
+//                GetTweets(iUser, iToken, iConnectionString, true);
+                
+//                List<IUser> Followers = null;
+//                if ((int)iUser.FollowersCount <= 6000)
+//                {
+//                    Followers = GetFollowers(iUser, iToken, iConnectionString, (int)iUser.FollowersCount);
+//                }
+//                else
+//                {
+//                    Followers = GetFollowers(iUser, iToken, iConnectionString, 6000);
+//                }
+
+//                foreach (var Follower in Followers)
+//                {
+//                    GetTwitterTreeRec(iDepth - 1, Follower, iToken, iConnectionString);
+//                }
+//            }
+//        }        

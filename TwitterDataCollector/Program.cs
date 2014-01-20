@@ -30,7 +30,8 @@ namespace UserSearch1
             //string connectionStringUsers = string.Format("DataSource=\"{0}\"; Password='{1}'", "TwitterUsers.sdf", "Users");
 
             string connectionString = string.Format("DataSource=\"TwitterData_{0}.sdf\"", DateTime.Now.ToString("dd.MM.yyyy.HH.mm.ss.ffff"));
-            
+            //connectionString = "DataSource=TwitterData_18.01.2014.09.17.25.6807.sdf";
+
             string fileContents = string.Empty;
             List<String> companyNames;
             //List<IUser> twitterUsers;
@@ -52,7 +53,7 @@ namespace UserSearch1
             string currentRunningDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             SqlCeConnectionStringBuilder sqlCeBuilder = new SqlCeConnectionStringBuilder(connectionString);
             rcUsers = userTree.CreateDB(Path.Combine(currentRunningDirectory, sqlCeBuilder.DataSource), connectionString);
-            
+
             ErrorCodes rcUsersTable = userTree.CreateTable("Users", TwitterUserTree.UsersTableSchema, connectionString);
             ErrorCodes rcFollowersTable = userTree.CreateTable("Followers", TwitterUserTree.UsersTableSchema, connectionString);
             ErrorCodes rcTweetsTable = userTree.CreateTable("Tweets", TwitterUserTree.TweetsTableSchema, connectionString);
@@ -67,6 +68,8 @@ namespace UserSearch1
             int maxFollowersToGetAfterFirstLevel = int.Parse(System.Configuration.ConfigurationManager.AppSettings["MaxFollowersToGetAfterFirstLevel"]);
 
             int numFollowersToGetForFirstLevel = maxFollowersToGetForFirstLevel;
+
+            
             foreach (var company in companyNames)
             {
                 List<IUser> twitterUsers = TwitterUserTree.SearchUser(token, company);//Search user
@@ -82,7 +85,9 @@ namespace UserSearch1
                     numFollowersToGetForFirstLevel = (int)twitterUsers[0].FollowersCount;
                 }
 
-                List<IUser> companyFollowers = userTree.GetFollowers(twitterUsers[0], token, connectionString, numFollowersToGetForFirstLevel);
+                //List<IUser> companyFollowers = userTree.GetFollowers(twitterUsers[0], token, connectionString, numFollowersToGetForFirstLevel, false);
+                userTree.GetFollowers(twitterUsers[0], token, connectionString, numFollowersToGetForFirstLevel, false);
+                List<String> companyFollowers = userTree.GetFollowersIDs(twitterUsers[0].IdStr, connectionString);
 
                 //userTree.GetTweets(twitterUsers[0], token, connectionString, true);
                 userTree.GetTweetsBetweenDates(twitterUsers[0], token, connectionString, true, true, true, DateTime.Now.Subtract(new System.TimeSpan(7,0,0,0)), DateTime.Now);
@@ -90,15 +95,20 @@ namespace UserSearch1
                 if (depth > 1)
                 {
                     int numFollowersToGet = maxFollowersToGetAfterFirstLevel;
-                    foreach (User follower in companyFollowers)
+                    foreach (string follower in companyFollowers)
                     {
+                        List<long> ids = new List<long>();
+                        ids.Add(long.Parse(follower));
+                        List<IUser> dummyCurrFollower = Tweetinvi.UserUtils.Lookup(ids, null, token);
+                        IUser currFollower = dummyCurrFollower[0];
+
                         if (maxFollowersToGetAfterFirstLevel == 0)
                         {
-                            numFollowersToGet = (int)follower.FollowersCount;
+                            numFollowersToGet = (int)currFollower.FollowersCount;
                         }
 
-                        userTree.GetFollowerInformationRec(follower, token, depth - 1, numFollowersToGet, connectionString);
-                    } 
+                        userTree.GetFollowerInformationRec(currFollower, token, depth - 1, numFollowersToGet, connectionString);
+                    }
                 }
                 
                 //userTree.GetTwitterTreeRec(depth, twitterUsers[0], token, connectionString);  
