@@ -52,6 +52,8 @@ namespace UserSearch1
 
             string currentRunningDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             SqlCeConnectionStringBuilder sqlCeBuilder = new SqlCeConnectionStringBuilder(connectionString);
+
+            Console.WriteLine(string.Format("Path to DB: {0} ", Path.Combine(currentRunningDirectory, sqlCeBuilder.DataSource)));
             rcUsers = userTree.CreateDB(Path.Combine(currentRunningDirectory, sqlCeBuilder.DataSource), connectionString);
 
             ErrorCodes rcUsersTable = userTree.CreateTable("Users", TwitterUserTree.UsersTableSchema, connectionString);
@@ -100,14 +102,17 @@ namespace UserSearch1
                         List<long> ids = new List<long>();
                         ids.Add(long.Parse(follower));
                         List<IUser> dummyCurrFollower = Tweetinvi.UserUtils.Lookup(ids, null, token);
-                        IUser currFollower = dummyCurrFollower[0];
-
-                        if (maxFollowersToGetAfterFirstLevel == 0)
+                        if (dummyCurrFollower != null && dummyCurrFollower.Count > 0)
                         {
-                            numFollowersToGet = (int)currFollower.FollowersCount;
-                        }
+                            IUser currFollower = dummyCurrFollower[0];
 
-                        userTree.GetFollowerInformationRec(currFollower, token, depth - 1, numFollowersToGet, connectionString);
+                            if (maxFollowersToGetAfterFirstLevel == 0)
+                            {
+                                numFollowersToGet = (int)currFollower.FollowersCount;
+                            }
+
+                            userTree.GetFollowerInformationRec(currFollower, token, depth - 1, numFollowersToGet, connectionString); 
+                        }
                     }
                 }
                 

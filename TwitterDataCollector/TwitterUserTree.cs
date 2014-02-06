@@ -44,22 +44,26 @@ namespace UserSearch1
                 {
                     try
                     {
+                        Console.WriteLine(string.Format("Connection string: {0}", iConnectionString));
                         SqlCeEngine db = new SqlCeEngine(iConnectionString);
                         db.CreateDatabase();
                         //CreateTable(Name, Schema, ConnectionString);
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
                         rc = ErrorCodes.ErrorOnCreating;
+                        Console.WriteLine(ex.ToString());
                     } 
                 }
                 else
                 {
                     rc = ErrorCodes.AlreadyExists;
+                    Console.WriteLine("File already exists");
                 }
             }
             else
             {
+                Console.WriteLine("Directory not found");
                 throw new DirectoryNotFoundException();
             }
 
