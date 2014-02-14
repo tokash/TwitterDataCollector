@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Data;
 using Tweetinvi;
 using TweetinCore.Interfaces;
+using SqlCE2CSV;
 
 namespace UserSearch1
 {
@@ -1017,6 +1018,11 @@ namespace UserSearch1
             }
 
             return followersIDs;
+        }
+
+        public void ConvertDBDataToCSV(string iQuery, string[] iColumnNames, string iConnectionString, string iFilename, string iDirectory)
+        {
+            SqlCE2CSVConverter.ConvertDBTableToCSV(iQuery, iColumnNames, iConnectionString, iFilename, true, iDirectory);
         }
     }
 }

@@ -71,6 +71,12 @@
   <ItemGroup>
     <Content Include="Current Twitinvi version.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Sql2CSV\SqlCE2CSV.csproj">
+      <Project>{8d87427f-df79-4896-ba98-ff307d189327}</Project>
+      <Name>SqlCE2CSV</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

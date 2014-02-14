@@ -1,21 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Tweetinvi;
-using TweetinCore;
-using oAuthConnection;
 using TweetinCore.Interfaces;
 using TwitterToken;
-using System.Data.SqlServerCe;
-using System.Net;
-using System;
-using System.Xml;
 using System.IO;
-using System.Diagnostics;
-using System.Reflection;
-//using Microsoft.NodeXL.ExcelTemplatePlugIns;
+using SqlCE2CSV;
+
 
 namespace UserSearch1
 {
@@ -26,16 +15,6 @@ namespace UserSearch1
             TwitterUserTree userTree = new TwitterUserTree();
 
             int NumOfCompaniesToSearch = 1;
-
-            //string connectionStringUsers = string.Format("DataSource=\"{0}\"; Password='{1}'", "TwitterUsers.sdf", "Users");
-
-            string connectionString = string.Format("DataSource=\"TwitterData_{0}.sdf\"", DateTime.Now.ToString("dd.MM.yyyy.HH.mm.ss.ffff"));
-            //connectionString = "DataSource=TwitterData_18.01.2014.09.17.25.6807.sdf";
-
-            string fileContents = string.Empty;
-            List<String> companyNames;
-            //List<IUser> twitterUsers;
-
             string ConsumerKey1 = System.Configuration.ConfigurationManager.AppSettings["ConsumerKey1"];
             string ConsumerSecret1 = System.Configuration.ConfigurationManager.AppSettings["ConsumerSecret1"];
             string AccessToken1 = System.Configuration.ConfigurationManager.AppSettings["AccessToken1"];
@@ -46,15 +25,36 @@ namespace UserSearch1
             string AccessToken2 = System.Configuration.ConfigurationManager.AppSettings["AccessToken2"];
             string AccessTokenSecret2 = System.Configuration.ConfigurationManager.AppSettings["AccessTokenSecret2"];
 
+            string CSVFilesDirectory = System.Configuration.ConfigurationManager.AppSettings["CSVFilesDirectory"];
+
+            //Generate DB name
+            string dbName = string.Format("TwitterData_{0}", DateTime.Now.ToString("dd.MM.yyyy.HH.mm.ss.ffff"));
+            string csvDirectory = Path.Combine(CSVFilesDirectory, dbName);
+            dbName += ".sdf";
+
+            //Get DB path from .config file
+            string DBCreationPAth = System.Configuration.ConfigurationManager.AppSettings["DBCreationPAth"];
+
+            //Combine DB name with DB path
+            string DBFullPath = Path.Combine(DBCreationPAth, dbName);
+
+            //Set Datasource
+            string connectionString = string.Format("DataSource={0}", DBFullPath);
+
+            string fileContents = string.Empty;
+            List<String> companyNames;            
+
             //IToken token = new Token(AccessToken1, AccessTokenSecret1, ConsumerKey1, ConsumerSecret1);
             IToken token = new Token(AccessToken2, AccessTokenSecret2, ConsumerKey2, ConsumerSecret2);
             ErrorCodes rcUsers = ErrorCodes.OK;
 
-            string currentRunningDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            SqlCeConnectionStringBuilder sqlCeBuilder = new SqlCeConnectionStringBuilder(connectionString);
+            //string currentRunningDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            //SqlCeConnectionStringBuilder sqlCeBuilder = new SqlCeConnectionStringBuilder(connectionString);
 
-            Console.WriteLine(string.Format("Path to DB: {0} ", Path.Combine(currentRunningDirectory, sqlCeBuilder.DataSource)));
-            rcUsers = userTree.CreateDB(Path.Combine(currentRunningDirectory, sqlCeBuilder.DataSource), connectionString);
+            //Console.WriteLine(string.Format("Path to DB: {0} ", Path.Combine(currentRunningDirectory, sqlCeBuilder.DataSource)));
+            Console.WriteLine(string.Format("Path to DB: {0} ", DBFullPath));
+            //rcUsers = userTree.CreateDB(Path.Combine(currentRunningDirectory, sqlCeBuilder.DataSource), connectionString);
+            rcUsers = userTree.CreateDB(DBFullPath, connectionString);
 
             ErrorCodes rcUsersTable = userTree.CreateTable("Users", TwitterUserTree.UsersTableSchema, connectionString);
             ErrorCodes rcFollowersTable = userTree.CreateTable("Followers", TwitterUserTree.UsersTableSchema, connectionString);
@@ -71,7 +71,6 @@ namespace UserSearch1
 
             int numFollowersToGetForFirstLevel = maxFollowersToGetForFirstLevel;
 
-            
             foreach (var company in companyNames)
             {
                 List<IUser> twitterUsers = TwitterUserTree.SearchUser(token, company);//Search user
@@ -115,9 +114,53 @@ namespace UserSearch1
                         }
                     }
                 }
-                
-                //userTree.GetTwitterTreeRec(depth, twitterUsers[0], token, connectionString);  
+
+                //Convert company data to csv files
+                string query = string.Format("Select * from Users where UserID= \'{0}\'", twitterUsers[0].IdStr);
+                string filename = string.Format("{0}.csv", company);
+                userTree.ConvertDBDataToCSV(query, new string[]{"UserID",
+                                                                "Name",
+                                                                "Follows", 
+                                                                "Description",
+                                                                "Screen_Name",
+                                                                "Followers_Count",
+                                                                "Friends_Count",
+                                                                "Favourites_Count",
+                                                                "Total_Tweet_Count",
+                                                                "Weekly_Tweet_Count",
+                                                                "Weekly_Retweet_Count",
+                                                                "Location",
+                                                                "Twitter_Name",
+                                                                "Time_Zone",
+                                                                "Created_At",
+                                                                "Time_Stamp"},
+                                                                connectionString,
+                                                                filename,
+                                                                csvDirectory);
+
+                query = string.Format("Select * from Followers where follows= \'{0}\'", twitterUsers[0].IdStr);
+                userTree.ConvertDBDataToCSV(query , new string[]{"UserID",
+                                                                "Name",
+                                                                "Follows", 
+                                                                "Description",
+                                                                "Screen_Name",
+                                                                "Followers_Count",
+                                                                "Friends_Count",
+                                                                "Favourites_Count",
+                                                                "Total_Tweet_Count",
+                                                                "Weekly_Tweet_Count",
+                                                                "Weekly_Retweet_Count",
+                                                                "Location",
+                                                                "Twitter_Name",
+                                                                "Time_Zone",
+                                                                "Created_At",
+                                                                "Time_Stamp"},
+                                                                connectionString,
+                                                                filename,
+                                                                csvDirectory);
             }
+
+            
             
         }
 
