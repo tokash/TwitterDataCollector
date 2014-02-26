@@ -61,9 +61,9 @@ namespace UserSearch1
             ErrorCodes rcTweetsTable = userTree.CreateTable("Tweets", TwitterUserTree.TweetsTableSchema, connectionString);
             ErrorCodes rcReTweetsTable = userTree.CreateTable("ReTweets", TwitterUserTree.ReTweetsTableSchema, connectionString);
 
-            rcUsers = userTree.ReadTxtFile(System.Configuration.ConfigurationManager.AppSettings["UsersListFilePath"], ref fileContents);
-            companyNames = userTree.ParseString(fileContents);
-            companyNames = TwitterUserTree.RemoveStringFromName(companyNames);
+            //rcUsers = userTree.ReadTxtFile(System.Configuration.ConfigurationManager.AppSettings["UsersListFilePath"], ref fileContents);
+            //companyNames = userTree.ParseString(fileContents);
+            //companyNames = TwitterUserTree.RemoveStringFromName(companyNames);
 
             int depth = int.Parse(System.Configuration.ConfigurationManager.AppSettings["SearchDepth"]);
             int maxFollowersToGetForFirstLevel = int.Parse(System.Configuration.ConfigurationManager.AppSettings["MaxFollowersToGetForFirstLevel"]);
@@ -71,7 +71,7 @@ namespace UserSearch1
 
             int numFollowersToGetForFirstLevel = maxFollowersToGetForFirstLevel;
 
-            foreach (var company in companyNames)
+            foreach (var company in userTree.Companies)
             {
                 List<IUser> twitterUsers = TwitterUserTree.SearchUser(token, company);//Search user
                 userTree.InitiateUserToDB(twitterUsers[0], connectionString);

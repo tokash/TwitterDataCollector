@@ -6,6 +6,8 @@ using System.Data;
 using Tweetinvi;
 using TweetinCore.Interfaces;
 using SqlCE2CSV;
+using System.Collections.Specialized;
+using System.Configuration;
 
 namespace UserSearch1
 {
@@ -22,6 +24,11 @@ namespace UserSearch1
         public static string ReTweetsTableSchema = @"(TweetID nvarchar (25) PRIMARY KEY, UserID nvarchar (25), SourceTweetID nvarchar (25), TimeOfReTweet nvarchar (40))";
         
         SqlCeConnection mDBConnection = null;
+        List<string> _Companies = new List<string>();
+        public List<string> Companies
+        {
+            get { return _Companies; }
+        }
 
         // TO DO: 
         // (1)-(a)Get companies user info from twitter->(b)get the Nth order tree of followers
@@ -32,6 +39,11 @@ namespace UserSearch1
         // (6)-Check For New Followers->Do (4b) Again 
         
         //--------------------------------------------------------------------------------------
+
+        public TwitterUserTree()
+        {
+            ReadConfigurationSection("Companies", ref _Companies, false);
+        }
 
         public ErrorCodes CreateDB(string iFullPath, string iConnectionString)
         {
@@ -1023,6 +1035,24 @@ namespace UserSearch1
         public void ConvertDBDataToCSV(string iQuery, string[] iColumnNames, string iConnectionString, string iFilename, string iDirectory)
         {
             SqlCE2CSVConverter.ConvertDBTableToCSV(iQuery, iColumnNames, iConnectionString, iFilename, true, iDirectory);
+        }
+
+        private void ReadConfigurationSection(string iConfigurationSection, ref List<string> oContainer, bool iMakeLowercase)
+        {
+            NameValueCollection temp = (NameValueCollection)ConfigurationManager.GetSection(iConfigurationSection);
+
+            foreach (string key in temp)
+            {
+
+                if (iMakeLowercase)
+                {
+                    oContainer.Add(temp[key].ToLower());
+                }
+                else
+                {
+                    oContainer.Add(temp[key]);
+                }
+            }
         }
     }
 }
