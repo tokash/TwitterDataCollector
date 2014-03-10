@@ -32,6 +32,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Newtonsoft.Json.6.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="oAuthConnection">
       <HintPath>..\..\tweetinvi.Alpha.0.8.0.3\oAuthConnection\bin\Debug\oAuthConnection.dll</HintPath>
     </Reference>
@@ -67,6 +71,7 @@
     <None Include="App.config">
       <SubType>Designer</SubType>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Current Twitinvi version.txt" />
@@ -75,6 +80,10 @@
     <ProjectReference Include="..\..\Sql2CSV\SqlCE2CSV.csproj">
       <Project>{8d87427f-df79-4896-ba98-ff307d189327}</Project>
       <Name>SqlCE2CSV</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\TwitterUserTimeLine\TwitterUserTimeLine\TwitterUserTimeLine.csproj">
+      <Project>{3cdf2784-7ebc-4f23-adf8-1f5b6370097c}</Project>
+      <Name>TwitterUserTimeLine</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
