@@ -255,10 +255,10 @@ namespace UserSearch1
         {
             ErrorCodes rc = ErrorCodes.OK;
 
-            if (mDBConnection == null)
-            {
+            //if (mDBConnection == null)
+            //{
                 mDBConnection = new SqlCeConnection(connectionstring); 
-            }
+            //}
 
             string sqlCommand = "INSERT INTO "
                               + "Users(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Followers_Added, Followers_Removed, PrevDBCompare, Friends_Count, Favourites_Count, Total_Tweet_Count, Weekly_Tweet_Count, Weekly_Retweet_Count, Location, Twitter_Name, Time_Zone, Created_At, Time_Stamp)" +
@@ -313,10 +313,10 @@ namespace UserSearch1
         {
             ErrorCodes rc = ErrorCodes.OK;
 
-            if (mDBConnection == null)
-            {
+            //if (mDBConnection == null)
+            //{
                 mDBConnection = new SqlCeConnection(connectionstring);
-            }
+            //}
 
             string sqlCommand = "INSERT INTO "
                               + "Followers(UserID, Name, Follows, Description, Screen_Name, Followers_Count, Followers_Added, Followers_Removed, PrevDBCompare, Friends_Count, Favourites_Count, Total_Tweet_Count, Weekly_tweet_Count, Weekly_Retweet_Count, Location, Twitter_Name, Created_At, Time_Stamp)" +
@@ -386,10 +386,10 @@ namespace UserSearch1
         {
             ErrorCodes rc = ErrorCodes.OK;
 
-            if (mDBConnection == null)
-            {
+            //if (mDBConnection == null)
+            //{
                 mDBConnection = new SqlCeConnection(connectionstring);
-            }
+            //}
 
             string sqlCommand = "INSERT INTO Tweets(TweetId, UserId, Tweet, Retweet_Count, TimeOfTweet) VALUES(@TweetId, @UserId, @Tweet, @Retweet_Count, @TimeOfTweet)";
 
@@ -455,10 +455,10 @@ namespace UserSearch1
         {
             ErrorCodes rc = ErrorCodes.OK;
 
-            if (mDBConnection == null)
-            {
+            //if (mDBConnection == null)
+            //{
                 mDBConnection = new SqlCeConnection(connectionstring);
-            }
+            //}
 
             string sqlCommand = "INSERT INTO ReTweets(TweetId, UserId, SourceTweetID, TimeOfReTweet) VALUES(@TweetId, @UserId, @SourceTweetID, @TimeOfReTweet)";
 
@@ -515,10 +515,9 @@ namespace UserSearch1
         
         public SqlCeDataReader ExecuteSQLQuery(string cmd, string ConnectionString)
         {
-            if (mDBConnection == null)
-            {
-                mDBConnection = new SqlCeConnection(ConnectionString);
-            }
+            
+            mDBConnection = new SqlCeConnection(ConnectionString);
+
 
             ErrorCodes rc = ErrorCodes.OK;
 
@@ -540,16 +539,18 @@ namespace UserSearch1
                 Console.WriteLine(ex.ToString());
                 rc = ErrorCodes.ErrorOnCreating;
             }
+            //finally
+            //{
+            //    mDBConnection.Close();
+            //}
 
             return Response;    
         }
 
         public int ExecuteSQLNonQuery(string cmd, string ConnectionString)
         {
-            if (mDBConnection == null)
-            {
-                mDBConnection = new SqlCeConnection(ConnectionString);
-            }
+            
+            mDBConnection = new SqlCeConnection(ConnectionString);
 
             ErrorCodes rc = ErrorCodes.OK;
 
@@ -570,6 +571,10 @@ namespace UserSearch1
             {
                 Console.WriteLine(ex.ToString());
                 rc = ErrorCodes.ErrorOnCreating;
+            }
+            finally
+            {
+                mDBConnection.Close();
             }
 
             return rowsAffected;
@@ -826,9 +831,13 @@ namespace UserSearch1
 
             try
             {
-                List<TweetObject> tweetObjects = _TwitterAPI.GetUserTimeLine(iUser.IdStr, 3200);
+                 List<TweetObject> tweetObjects = _TwitterAPI.GetUserTimeLine(iUser.IdStr, 3200);
 
-                Tweets = ConvertListTweetObjectToTweet(tweetObjects);
+                 if (tweetObjects != null)
+                 {
+                     Tweets = ConvertListTweetObjectToTweet(tweetObjects);
+                 }
+                
 
                 //Tweets = iUser.GetUserTimelineCursored(true, iToken);
             }
@@ -909,7 +918,7 @@ namespace UserSearch1
 
                             if (sumRetweetCount != 0 && neededTweets != null)
                             {
-                                sqlCmd = string.Format("Update Users set Weekly_Tweet_count = {0}, Weekly_Retweet_count={1} where userid='{2}'", neededTweets.Count, sumRetweetCount, iUser.IdStr);
+                                sqlCmd = string.Format("Update Users set Weekly_Tweet_count={0}, Weekly_Retweet_count={1} where userid='{2}';", neededTweets.Count, sumRetweetCount, iUser.IdStr);
                                 ExecuteSQLNonQuery(sqlCmd, iConnectionString);
                             }
                         }
@@ -924,7 +933,7 @@ namespace UserSearch1
                             sumRetweetCount += (int)Tweet.RetweetCount;
                         }
 
-                        sqlCmd = string.Format("Update followers set Weekly_Tweet_count = {0}, Weekly_Retweet_count={1} where userid='{2}'", neededTweets.Count, sumRetweetCount, iUser.IdStr);
+                        sqlCmd = string.Format("Update followers set Weekly_Tweet_count={0}, Weekly_Retweet_count={1} where userid='{2}';", neededTweets.Count, sumRetweetCount, iUser.IdStr);
                         ExecuteSQLNonQuery(sqlCmd, iConnectionString);
                          
                     }
